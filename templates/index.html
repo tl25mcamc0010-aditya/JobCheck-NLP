@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Fake Job Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;
+  --surface:#16161a;
+  --border:#2a2a32;
+  --accent:#ff4757;
+  --accent2:#2ed573;
+  --text:#e8e8f0;
+  --muted:#6b6b80;
+  --font-head:'Syne',sans-serif;
+  --font-mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:.4;pointer-events:none;z-index:0;}
+
+nav{position:relative;z-index:1;width:100%;max-width:720px;display:flex;gap:6px;margin-bottom:40px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;}
+nav a{flex:1;text-align:center;text-decoration:none;color:var(--muted);font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:8px;transition:all .2s;}
+nav a:hover{color:var(--text);}
+nav a.active{background:var(--border);color:var(--text);}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:720px;animation:fadeIn .4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+header{margin-bottom:40px;text-align:center;}
+.logo{font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+h1{font-family:var(--font-head);font-size:clamp(32px,6vw,52px);font-weight:800;line-height:1.05;letter-spacing:-.02em;}
+h1 span{color:var(--accent);}
+.subtitle{margin-top:10px;font-size:13px;color:var(--muted);letter-spacing:.04em;}
+
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center;}
+.stat-num{font-family:var(--font-head);font-size:28px;font-weight:800;}
+.stat-num.red{color:var(--accent);}
+.stat-num.green{color:var(--accent2);}
+.stat-label{font-size:11px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-top:4px;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px;}
+label{display:block;font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+textarea{
+  width:100%;background:#0d0d0f;border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-family:var(--font-mono);font-size:14px;line-height:1.7;
+  padding:16px;resize:vertical;min-height:200px;outline:none;transition:border-color .2s;
+}
+textarea:focus{border-color:#444460;}
+textarea.error{border-color:var(--accent);}
+
+.meta-row{display:flex;justify-content:space-between;align-items:center;margin-top:12px;}
+.char-count{font-size:12px;color:var(--muted);}
+
+button{
+  display:flex;align-items:center;gap:10px;
+  background:var(--accent);color:#fff;
+  font-family:var(--font-head);font-weight:700;font-size:15px;letter-spacing:.04em;
+  border:none;border-radius:10px;padding:14px 28px;cursor:pointer;transition:all .2s;
+}
+button:hover{background:#ff6b7a;transform:translateY(-1px);}
+button:active{transform:translateY(0);}
+button:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none;}
+@keyframes spin{to{transform:rotate(360deg)}}
+button.loading .spinner{display:block;}
+button.loading .btn-text{opacity:.7;}
+
+.result{display:none;border-radius:16px;padding:28px;border:1px solid;margin-bottom:20px;animation:slideUp .35s ease;}
+@keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.result.fake{background:#1a0a0c;border-color:#ff4757;}
+.result.real{background:#091a0e;border-color:#2ed573;}
+.result-badge{display:inline-flex;align-items:center;gap:10px;font-family:var(--font-head);font-size:26px;font-weight:800;margin-bottom:8px;}
+.dot{width:12px;height:12px;border-radius:50%;}
+.fake .dot{background:var(--accent);box-shadow:0 0 8px var(--accent);}
+.real .dot{background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
+.result-sub{font-size:13px;color:var(--muted);line-height:1.6;}
+
+.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.history-header h2{font-family:var(--font-head);font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+.pill{font-size:11px;background:var(--border);border-radius:20px;padding:3px 10px;color:var(--muted);}
+.history-list{display:flex;flex-direction:column;gap:8px;}
+.history-item{background:#0d0d0f;border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:border-color .2s;}
+.history-item:hover{border-color:#444460;}
+.hi-text{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:82%;}
+.hi-badge{font-size:11px;font-weight:700;font-family:var(--font-head);padding:3px 10px;border-radius:20px;flex-shrink:0;}
+.hi-badge.fake{background:rgba(255,71,87,.15);color:var(--accent);}
+.hi-badge.real{background:rgba(46,213,115,.15);color:var(--accent2);}
+.empty{font-size:13px;color:var(--muted);text-align:center;padding:24px 0;}
+
+/* Flash message */
+.flash{padding:12px 18px;border-radius:10px;font-size:13px;margin-bottom:16px;border:1px solid;}
+.flash.error{background:#1a0a0c;border-color:var(--accent);color:var(--accent);}
+.flash.success{background:#091a0e;border-color:var(--accent2);color:var(--accent2);}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="active">Detector</a>
+  <a href="/history">History</a>
+  <a href="/stats">Stats</a>
+  <a href="/batch">Batch Upload</a>
+</nav>
+
+<div class="wrap">
+  <header>
+    <div class="logo">ML · Detection System</div>
+    <h1>Fake Job<br/><span>Detector</span></h1>
+    <p class="subtitle">Paste a job description — our model classifies it instantly</p>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">{{ stats.total }}</div>
+      <div class="stat-label">Analyzed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num red">{{ stats.fake }}</div>
+      <div class="stat-label">Fake Jobs</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num green">{{ stats.real }}</div>
+      <div class="stat-label">Real Jobs</div>
+    </div>
+  </div>
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Result card (shown after prediction) -->
+  {% if prediction %}
+  <div class="result {{ 'fake' if prediction == 'Fake Job' else 'real' }}" style="display:block;">
+    <div class="result-badge">
+      <div class="dot"></div>
+      {{ '⚠ Fake Job Detected' if prediction == 'Fake Job' else '✓ Looks Legitimate' }}
+    </div>
+    <div class="result-sub">
+      {% if prediction == 'Fake Job' %}
+        This posting shows patterns consistent with fraudulent job listings. Proceed with caution.
+      {% else %}
+        This posting appears to be a genuine job opportunity based on our model.
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Input card -->
+  <div class="card">
+    <label for="job">Job Description</label>
+    <form method="POST" action="/predict" id="predict-form">
+      <textarea id="job" name="job" placeholder="Paste the full job posting here — title, responsibilities, requirements, salary info...">{{ job_text or '' }}</textarea>
+      <div class="meta-row">
+        <span class="char-count" id="char-count">0 characters</span>
+        <button type="submit" id="predict-btn">
+          <span class="btn-text">Analyze Posting</span>
+          <div class="spinner"></div>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Recent predictions -->
+  <div class="card">
+    <div class="history-header">
+      <h2>Recent Predictions</h2>
+      <span class="pill">{{ recent|length }} shown</span>
+    </div>
+    <div class="history-list">
+      {% if recent %}
+        {% for item in recent %}
+        <div class="history-item" data-desc="{{ item.description[:200] | e }}" onclick="fillTextarea(this.dataset.desc)">
+          <span class="hi-text">{{ item.description[:70] | e }}…</span>
+          <span class="hi-badge {{ 'fake' if item.prediction == 'Fake Job' else 'real' }}">
+            {{ item.prediction }}
+          </span>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="empty">No predictions yet. Analyze a job posting above.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+const textarea = document.getElementById('job');
+const charCount = document.getElementById('char-count');
+const form = document.getElementById('predict-form');
+const btn = document.getElementById('predict-btn');
+
+function updateCount() {
+  charCount.textContent = textarea.value.length + ' characters';
+}
+textarea.addEventListener('input', updateCount);
+updateCount();
+
+form.addEventListener('submit', function(e) {
+  if (!textarea.value.trim()) {
+    e.preventDefault();
+    textarea.classList.add('error');
+    setTimeout(() => textarea.classList.remove('error'), 800);
+    return;
+  }
+  btn.classList.add('loading');
+  btn.disabled = true;
+});
+
+function fillTextarea(text) {
+  textarea.value = text;
+  updateCount();
+  textarea.focus();
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+</script>
+</body>
+</html>

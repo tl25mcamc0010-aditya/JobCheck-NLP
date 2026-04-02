@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>History — Fake Job Detector</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0f;--surface:#16161a;--border:#2a2a32;
+  --accent:#ff4757;--accent2:#2ed573;--text:#e8e8f0;--muted:#6b6b80;
+  --font-head:'Syne',sans-serif;--font-mono:'DM Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 20px;}
+body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");opacity:.4;pointer-events:none;z-index:0;}
+
+nav{position:relative;z-index:1;width:100%;max-width:860px;display:flex;gap:6px;margin-bottom:40px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:6px;}
+nav a{flex:1;text-align:center;text-decoration:none;color:var(--muted);font-family:var(--font-head);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:8px;transition:all .2s;}
+nav a:hover{color:var(--text);}
+nav a.active{background:var(--border);color:var(--text);}
+
+.wrap{position:relative;z-index:1;width:100%;max-width:860px;animation:fadeIn .4s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.page-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;}
+h1{font-family:var(--font-head);font-size:36px;font-weight:800;letter-spacing:-.02em;}
+h1 span{color:var(--accent);}
+.pill{font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:5px 14px;color:var(--muted);}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.filter-btn{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;cursor:pointer;transition:all .2s;}
+.filter-btn:hover{border-color:#444460;color:var(--text);}
+.filter-btn.active{background:var(--border);color:var(--text);}
+.filter-btn.fake-active{background:rgba(255,71,87,.15);border-color:var(--accent);color:var(--accent);}
+.filter-btn.real-active{background:rgba(46,213,115,.15);border-color:var(--accent2);color:var(--accent2);}
+
+input[type=search]{
+  flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-family:var(--font-mono);font-size:13px;padding:8px 14px;outline:none;transition:border-color .2s;
+}
+input[type=search]:focus{border-color:#444460;}
+input[type=search]::placeholder{color:var(--muted);}
+
+/* Table */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+table{width:100%;border-collapse:collapse;}
+thead{background:#0d0d0f;}
+th{padding:14px 20px;text-align:left;font-family:var(--font-head);font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+td{padding:14px 20px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tr{transition:background .15s;}
+tr:hover td{background:rgba(255,255,255,.02);}
+
+.id-cell{color:var(--muted);font-size:12px;}
+.desc-cell{max-width:460px;color:var(--muted);line-height:1.5;}
+.badge{display:inline-block;font-size:11px;font-weight:700;font-family:var(--font-head);padding:4px 12px;border-radius:20px;white-space:nowrap;}
+.badge.fake{background:rgba(255,71,87,.15);color:var(--accent);}
+.badge.real{background:rgba(46,213,115,.15);color:var(--accent2);}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+.empty-state a{color:var(--text);text-underline-offset:3px;}
+
+/* Pagination */
+.pagination{display:flex;justify-content:center;gap:6px;margin-top:20px;}
+.pagination a{padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--muted);text-decoration:none;font-size:13px;transition:all .2s;}
+.pagination a:hover{border-color:#444460;color:var(--text);}
+.pagination a.active-page{background:var(--border);color:var(--text);}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/">Detector</a>
+  <a href="/history" class="active">History</a>
+  <a href="/stats">Stats</a>
+  <a href="/batch">Batch Upload</a>
+</nav>
+
+<div class="wrap">
+  <div class="page-header">
+    <h1>Prediction <span>History</span></h1>
+    <span class="pill">{{ jobs|length }} total records</span>
+  </div>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <input type="search" id="search-input" placeholder="Search descriptions…" oninput="filterTable()"/>
+    <button class="filter-btn active" id="btn-all" onclick="setFilter('all')">All</button>
+    <button class="filter-btn" id="btn-fake" onclick="setFilter('fake')">Fake Only</button>
+    <button class="filter-btn" id="btn-real" onclick="setFilter('real')">Real Only</button>
+  </div>
+
+  <div class="table-wrap">
+    {% if jobs %}
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Job Description</th>
+          <th>Prediction</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr data-prediction="{{ job.prediction | lower | replace(' ', '-') }}">
+          <td class="id-cell">{{ job.id }}</td>
+          <td class="desc-cell">{{ job.description[:120] }}{% if job.description|length > 120 %}…{% endif %}</td>
+          <td>
+            <span class="badge {{ 'fake' if job.prediction == 'Fake Job' else 'real' }}">
+              {{ job.prediction }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      No predictions yet. <a href="/">Analyze a job posting</a> to see history here.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+let currentFilter = 'all';
+
+function setFilter(f) {
+  currentFilter = f;
+  document.getElementById('btn-all').className = 'filter-btn' + (f==='all' ? ' active' : '');
+  document.getElementById('btn-fake').className = 'filter-btn' + (f==='fake' ? ' fake-active' : '');
+  document.getElementById('btn-real').className = 'filter-btn' + (f==='real' ? ' real-active' : '');
+  filterTable();
+}
+
+function filterTable() {
+  const query = document.getElementById('search-input').value.toLowerCase();
+  const rows = document.querySelectorAll('#history-table tbody tr');
+  rows.forEach(row => {
+    const pred = row.dataset.prediction;
+    const text = row.querySelector('.desc-cell').textContent.toLowerCase();
+    const matchFilter = currentFilter === 'all' || pred.includes(currentFilter);
+    const matchSearch = !query || text.includes(query);
+    row.style.display = matchFilter && matchSearch ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

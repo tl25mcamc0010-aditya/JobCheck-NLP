@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Batch Upload — Fake Job Detector</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #0d0d0f;
+        --surface: #16161a;
+        --border: #2a2a32;
+        --accent: #ff4757;
+        --accent2: #2ed573;
+        --text: #e8e8f0;
+        --muted: #6b6b80;
+        --font-head: "Syne", sans-serif;
+        --font-mono: "DM Mono", monospace;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-mono);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+        opacity: 0.4;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      nav {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 860px;
+        display: flex;
+        gap: 6px;
+        margin-bottom: 40px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 6px;
+      }
+      nav a {
+        flex: 1;
+        text-align: center;
+        text-decoration: none;
+        color: var(--muted);
+        font-family: var(--font-head);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 9px 12px;
+        border-radius: 8px;
+        transition: all 0.2s;
+      }
+      nav a:hover {
+        color: var(--text);
+      }
+      nav a.active {
+        background: var(--border);
+        color: var(--text);
+      }
+
+      .wrap {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 860px;
+        animation: fadeIn 0.4s ease;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      h1 {
+        font-family: var(--font-head);
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+      }
+      h1 span {
+        color: var(--accent);
+      }
+      .page-sub {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 32px;
+        line-height: 1.6;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 28px;
+        margin-bottom: 20px;
+      }
+      .card h2 {
+        font-family: var(--font-head);
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+
+      /* Drop zone */
+      .drop-zone {
+        border: 2px dashed var(--border);
+        border-radius: 12px;
+        padding: 48px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 16px;
+      }
+      .drop-zone:hover,
+      .drop-zone.drag-over {
+        border-color: #444460;
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .drop-zone .icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+      }
+      .drop-zone p {
+        font-size: 14px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .drop-zone strong {
+        color: var(--text);
+      }
+      .drop-zone input[type="file"] {
+        display: none;
+      }
+
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.6;
+        background: #0d0d0f;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px 18px;
+      }
+      .hint code {
+        color: var(--text);
+        background: var(--border);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+
+      button {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-family: var(--font-head);
+        font-weight: 700;
+        font-size: 15px;
+        letter-spacing: 0.04em;
+        border: none;
+        border-radius: 10px;
+        padding: 14px 28px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      button:hover {
+        background: #ff6b7a;
+        transform: translateY(-1px);
+      }
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        transform: none;
+      }
+      .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.3);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        display: none;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      button.loading .spinner {
+        display: block;
+      }
+      button.loading .btn-text {
+        opacity: 0.7;
+      }
+
+      /* Progress */
+      .progress-wrap {
+        display: none;
+        margin-bottom: 20px;
+      }
+      .progress-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .progress-bar {
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 3px;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      /* Results table */
+      .results-wrap {
+        display: none;
+      }
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .results-header h2 {
+        font-family: var(--font-head);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .dl-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-family: var(--font-head);
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border-radius: 8px;
+        padding: 8px 16px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .dl-btn:hover {
+        border-color: #444460;
+        transform: none;
+      }
+
+      .table-wrap {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      thead {
+        background: #0d0d0f;
+        position: sticky;
+        top: 0;
+      }
+      th {
+        padding: 12px 18px;
+        text-align: left;
+        font-family: var(--font-head);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+      }
+      td {
+        padding: 12px 18px;
+        border-bottom: 1px solid var(--border);
+        font-size: 13px;
+        color: var(--text);
+        vertical-align: middle;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .desc-cell {
+        max-width: 520px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 700;
+        font-family: var(--font-head);
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+      .badge.fake {
+        background: rgba(255, 71, 87, 0.15);
+        color: #ff4757;
+      }
+      .badge.real {
+        background: rgba(46, 213, 115, 0.15);
+        color: #2ed573;
+      }
+
+      .summary-row {
+        display: flex;
+        gap: 16px;
+        margin-top: 12px;
+      }
+      .summary-pill {
+        font-size: 12px;
+        padding: 4px 12px;
+        border-radius: 20px;
+      }
+      .summary-pill.fake {
+        background: rgba(255, 71, 87, 0.1);
+        color: #ff4757;
+        border: 1px solid rgba(255, 71, 87, 0.3);
+      }
+      .summary-pill.real {
+        background: rgba(46, 213, 115, 0.1);
+        color: #2ed573;
+        border: 1px solid rgba(46, 213, 115, 0.3);
+      }
+
+      .flash {
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        margin-bottom: 16px;
+        border: 1px solid;
+      }
+      .flash.error {
+        background: #1a0a0c;
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/">Detector</a>
+      <a href="/history">History</a>
+      <a href="/stats">Stats</a>
+      <a href="/batch" class="active">Batch Upload</a>
+    </nav>
+
+    <div class="wrap">
+      <h1>Batch <span>Upload</span></h1>
+      <p class="page-sub">
+        Upload a CSV file containing job descriptions to classify all of them at
+        once.<br />Results can be downloaded as a new CSV with predictions
+        appended.
+      </p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %} {% for
+      category, message in messages %}
+      <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %} {% endwith %}
+
+      <div class="card">
+        <h2>Upload CSV File</h2>
+        <form
+          method="POST"
+          action="/batch"
+          enctype="multipart/form-data"
+          id="batch-form"
+        >
+          <div
+            class="drop-zone"
+            id="drop-zone"
+            onclick="document.getElementById('csv-file').click()"
+          >
+            <div class="icon">📄</div>
+            <p>
+              <strong>Click to upload</strong> or drag and drop your CSV here
+            </p>
+            <p style="margin-top: 6px; font-size: 12px">
+              Must contain a <code>text</code> or
+              <code>description</code> column
+            </p>
+            <input
+              type="file"
+              id="csv-file"
+              name="file"
+              accept=".csv"
+              onchange="fileSelected(this)"
+            />
+          </div>
+
+          <div class="hint">
+            Expected CSV format: must include a column named
+            <code>text</code> (or <code>description</code>) with one full job
+            posting per row. Any other columns (title, company, etc.) will be
+            preserved in the output.
+          </div>
+
+          <div
+            style="
+              margin-top: 16px;
+              display: flex;
+              align-items: center;
+              gap: 16px;
+            "
+          >
+            <button type="submit" id="upload-btn" disabled>
+              <span class="btn-text">Run Predictions</span>
+              <div class="spinner"></div>
+            </button>
+            <span id="file-name" style="font-size: 13px; color: var(--muted)"
+              >No file selected</span
+            >
+          </div>
+        </form>
+      </div>
+
+      <!-- Results (shown after Flask POST) -->
+      {% if results %}
+      <div class="results-wrap" style="display: block">
+        <div class="results-header">
+          <h2>Results — {{ results|length }} rows processed</h2>
+          <form method="POST" action="/batch/download" style="margin: 0">
+            <button type="submit" class="dl-btn">↓ Download CSV</button>
+          </form>
+        </div>
+
+        <div class="summary-row" style="margin-bottom: 14px">
+          <span class="summary-pill fake"
+            >{{ results | selectattr('prediction', 'equalto', 'Fake Job') | list
+            | length }} Fake</span
+          >
+          <span class="summary-pill real"
+            >{{ results | selectattr('prediction', 'equalto', 'Real Job') | list
+            | length }} Real</span
+          >
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Text</th>
+                <th>Prediction</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in results %}
+              <tr>
+                <td style="color: var(--muted); font-size: 12px">
+                  {{ loop.index }}
+                </td>
+                <td class="desc-cell">
+                  {{ row.text[:100] }}{% if row.text|length > 100 %}…{% endif %}
+                </td>
+                <td>
+                  <span
+                    class="badge {{ 'fake' if row.prediction == 'Fake Job' else 'real' }}"
+                    >{{ row.prediction }}</span
+                  >
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <script>
+      const dropZone = document.getElementById("drop-zone");
+      const uploadBtn = document.getElementById("upload-btn");
+      const fileInput = document.getElementById("csv-file");
+      const form = document.getElementById("batch-form");
+
+      function fileSelected(input) {
+        if (input.files.length) {
+          document.getElementById("file-name").textContent =
+            input.files[0].name;
+          uploadBtn.disabled = false;
+        }
+      }
+
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      });
+      dropZone.addEventListener("dragleave", () =>
+        dropZone.classList.remove("drag-over"),
+      );
+      dropZone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dropZone.classList.remove("drag-over");
+        const file = e.dataTransfer.files[0];
+        if (file && file.name.endsWith(".csv")) {
+          fileInput.files = e.dataTransfer.files;
+          fileSelected(fileInput);
+        }
+      });
+
+      form.addEventListener("submit", () => {
+        uploadBtn.classList.add("loading");
+        uploadBtn.disabled = true;
+      });
+    </script>
+  </body>
+</html>
